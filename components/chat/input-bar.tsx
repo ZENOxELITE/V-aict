@@ -63,107 +63,93 @@ export function InputBar({ onSend, isLoading, onOpenTemplates, initialValue }: I
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-background md:pl-60">
-      <div className="max-w-3xl mx-auto px-3 sm:px-4 pb-4 pt-2">
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 pb-3 pt-2">
 
-        <div
-          className={`
-            flex flex-col bg-white dark:bg-neutral-900
-            rounded-2xl overflow-hidden
-            border transition-all duration-150
-            ${hasContent
-              ? 'border-black/40 dark:border-white/40'
-              : 'border-black/10 dark:border-white/10'
-            }
-          `}
-        >
+        {/* Single row input */}
+        <div className={`
+          flex items-center gap-2 px-3 py-2.5
+          bg-white dark:bg-neutral-900 rounded-2xl
+          border transition-all duration-150
+          ${hasContent
+            ? 'border-black/30 dark:border-white/30'
+            : 'border-black/10 dark:border-white/10'}
+        `}>
+
+          {/* Templates button */}
+          <button
+            type="button"
+            onClick={onOpenTemplates}
+            disabled={isLoading}
+            title="Prompt templates"
+            className="
+              w-7 h-7 rounded-full flex-shrink-0
+              border border-black/10 dark:border-white/10
+              flex items-center justify-center
+              text-black/35 dark:text-white/35
+              hover:text-black dark:hover:text-white
+              hover:border-black/20 dark:hover:border-white/20
+              disabled:opacity-30 disabled:cursor-not-allowed
+              transition-all duration-120
+            "
+          >
+            <Sparkles className="w-3.5 h-3.5" strokeWidth={1.8} />
+          </button>
+
           {/* Textarea */}
-          <div className="px-4 pt-3 pb-2">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value.slice(0, MAX_CHARS))}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading}
-              placeholder="Message NeuraChat..."
-              rows={1}
-              style={{ minHeight: '24px', maxHeight: '160px', fontSize: '15px' }}
-              className="
-                w-full bg-transparent border-none outline-none resize-none
-                text-black dark:text-white
-                placeholder:text-black/25 dark:placeholder:text-white/25
-                leading-relaxed overflow-y-auto
-                disabled:opacity-50
-              "
-            />
-          </div>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value.slice(0, MAX_CHARS))}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+            placeholder="Message NeuraChat..."
+            rows={1}
+            style={{ minHeight: '22px', maxHeight: '160px', fontSize: '14px' }}
+            className="
+              flex-1 bg-transparent border-none outline-none resize-none
+              text-black dark:text-white
+              placeholder:text-black/25 dark:placeholder:text-white/25
+              leading-relaxed overflow-y-auto
+              disabled:opacity-40
+            "
+          />
 
-          {/* Toolbar */}
-          <div className="flex items-center justify-between px-3 pb-3">
+          {/* Char count */}
+          {showCount && (
+            <span className={`
+              text-[10px] font-mono flex-shrink-0
+              ${remaining <= 0 ? 'text-red-500' : 'text-black/25 dark:text-white/25'}
+            `}>
+              {remaining}
+            </span>
+          )}
 
-            {/* Left — templates button + char count */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onOpenTemplates}
-                disabled={isLoading}
-                title="Prompt templates"
-                className="
-                  w-[30px] h-[30px] rounded-full
-                  border border-black/10 dark:border-white/10
-                  flex items-center justify-center
-                  text-black/40 dark:text-white/40
-                  hover:text-black dark:hover:text-white
-                  hover:border-black/20 dark:hover:border-white/20
-                  hover:bg-black/4 dark:hover:bg-white/6
-                  disabled:opacity-30 disabled:cursor-not-allowed
-                  transition-all duration-120
-                "
-              >
-                <Sparkles className="w-[14px] h-[14px]" strokeWidth={1.8} />
-              </button>
-
-              {showCount && (
-                <span
-                  className={`
-                    text-[11px] font-mono tabular-nums
-                    ${remaining <= 0
-                      ? 'text-red-500'
-                      : 'text-black/30 dark:text-white/30'
-                    }
-                  `}
-                >
-                  {remaining} left
-                </span>
-              )}
-            </div>
-
-            {/* Right — send / stop button */}
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={!hasContent && !isLoading}
-              title={isLoading ? 'Waiting for response' : 'Send message'}
-              className={`
-                w-[30px] h-[30px] rounded-full
-                flex items-center justify-center
-                transition-all duration-120
-                ${hasContent && !isLoading
-                  ? 'bg-black dark:bg-white text-white dark:text-black cursor-pointer hover:opacity-80'
-                  : isLoading
-                    ? 'border border-black/20 dark:border-white/20 text-black/40 dark:text-white/40 cursor-default'
-                    : 'border border-black/10 dark:border-white/10 text-black/20 dark:text-white/20 cursor-not-allowed opacity-40'
-                }
-              `}
-            >
-              {isLoading
-                ? <Square className="w-[11px] h-[11px]" strokeWidth={2} />
-                : <ArrowUp className="w-[13px] h-[13px]" strokeWidth={2.5} />
+          {/* Send / stop button */}
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!hasContent && !isLoading}
+            title={isLoading ? 'Responding...' : 'Send'}
+            className={`
+              w-7 h-7 rounded-full flex-shrink-0
+              flex items-center justify-center
+              transition-all duration-120
+              ${hasContent && !isLoading
+                ? 'bg-black dark:bg-white text-white dark:text-black hover:opacity-80 cursor-pointer'
+                : isLoading
+                  ? 'border border-black/15 dark:border-white/15 text-black/35 dark:text-white/35'
+                  : 'border border-black/10 dark:border-white/10 text-black/20 dark:text-white/20 cursor-not-allowed opacity-40'
               }
-            </button>
-          </div>
+            `}
+          >
+            {isLoading
+              ? <Square className="w-2.5 h-2.5" strokeWidth={2} />
+              : <ArrowUp className="w-3 h-3" strokeWidth={2.5} />
+            }
+          </button>
         </div>
 
-        <p className="text-center text-[11px] text-black/25 dark:text-white/25 mt-2">
+        <p className="text-center text-[10.5px] text-black/20 dark:text-white/20 mt-1.5">
           NeuraChat can make mistakes. Verify important information.
         </p>
       </div>

@@ -14,10 +14,10 @@ interface MessageProps {
 }
 
 const REACTIONS: { type: ReactionType; icon: typeof ThumbsUp; label: string }[] = [
-  { type: 'like', icon: ThumbsUp, label: 'Good' },
-  { type: 'dislike', icon: ThumbsDown, label: 'Bad' },
-  { type: 'helpful', icon: Lightbulb, label: 'Helpful' },
-  { type: 'creative', icon: Sparkles, label: 'Creative' },
+  { type: 'like',     icon: ThumbsUp,   label: 'Good'     },
+  { type: 'dislike',  icon: ThumbsDown, label: 'Bad'      },
+  { type: 'helpful',  icon: Lightbulb,  label: 'Helpful'  },
+  { type: 'creative', icon: Sparkles,   label: 'Creative' },
 ];
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
@@ -29,31 +29,80 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const lines = code.split('\n');
+
   return (
-    <div className="my-3 rounded-lg overflow-hidden border border-border">
-      <div className="flex items-center justify-between px-4 py-2 bg-surface3 border-b border-border">
-        <span className="text-[11px] text-muted font-mono font-medium">{language || 'code'}</span>
+    <div className="my-3 rounded-lg overflow-hidden border border-white/8" style={{ background: '#0d0d0d' }}>
+
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-3 py-2 border-b border-white/6"
+        style={{ background: '#111' }}
+      >
+        <div className="flex items-center gap-2">
+          {/* Three dots */}
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-white/10" />
+            <div className="w-2 h-2 rounded-full bg-white/10" />
+            <div className="w-2 h-2 rounded-full bg-white/10" />
+          </div>
+          <span className="text-[11px] font-mono text-white/35 tracking-wide">
+            {language || 'code'}
+          </span>
+        </div>
+
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1 text-[11px] text-muted hover:text-foreground transition-colors font-medium"
+          className="flex items-center gap-1 text-[11px] font-mono text-white/30 hover:text-white/70 transition-colors border border-white/10 rounded px-2 py-0.5"
         >
-          {copied ? <Check className="w-3 h-3 text-green" /> : <Copy className="w-3 h-3" />}
-          {copied ? 'Copied' : 'Copy'}
+          {copied
+            ? <Check className="w-2.5 h-2.5 text-green-400" />
+            : <Copy className="w-2.5 h-2.5" />
+          }
+          {copied ? 'copied' : 'copy'}
         </button>
       </div>
-      <SyntaxHighlighter
-        language={language || 'text'}
-        style={oneDark}
-        customStyle={{
-          margin: 0,
-          padding: '1rem',
-          background: 'var(--color-surface2)',
-          fontSize: '12.5px',
-        }}
-      >
-        {code}
-      </SyntaxHighlighter>
+
+      {/* Code body — line numbers + code */}
+      <div className="flex overflow-x-auto">
+
+        {/* Line numbers */}
+        <div
+          className="flex-shrink-0 select-none border-r border-white/5 px-3 py-3.5"
+          style={{ background: '#0d0d0d' }}
+        >
+          {lines.map((_, i) => (
+            <div
+              key={i}
+              className="text-right font-mono leading-[1.7] text-white/15"
+              style={{ fontSize: '12px' }}
+            >
+              {i + 1}
+            </div>
+          ))}
+        </div>
+
+        {/* Syntax highlighted code */}
+        <div className="flex-1 min-w-0">
+          <SyntaxHighlighter
+  language={language || 'text'}
+  style={oneDark}
+  customStyle={{
+    margin: 0,
+    padding: '14px 14px 14px 0', // remove left padding — line numbers provide it
+    background: '#0d0d0d',
+    fontSize: '12.5px',
+    lineHeight: '1.7',
+  }}
+  codeTagProps={{ style: { fontFamily: "'Geist Mono', 'Fira Code', monospace" } }}
+  wrapLines={false}
+  showLineNumbers={false}
+>
+  {code}
+</SyntaxHighlighter>
+        </div>
+      </div>
     </div>
   );
 }
@@ -113,16 +162,13 @@ export function Message({ message, onReact, onEdit, onRegenerate }: MessageProps
   };
 
   return (
-    <div
-      className={`flex gap-2 sm:gap-3 animate-in fade-in duration-200 ${isUser ? 'flex-row-reverse' : ''}`}
-    >
+    <div className={`flex gap-2 sm:gap-3 animate-in fade-in duration-200 ${isUser ? 'flex-row-reverse' : ''}`}>
+
       {/* Avatar */}
-      <div
-        className={`
-          w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 flex items-center justify-center
-          ${isUser ? 'bg-surface2 border border-border-mid' : 'bg-foreground'}
-        `}
-      >
+      <div className={`
+        w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex-shrink-0 flex items-center justify-center
+        ${isUser ? 'bg-surface2 border border-border-mid' : 'bg-foreground'}
+      `}>
         {isUser ? (
           <span className="text-[11px] sm:text-[12px] font-bold text-muted">U</span>
         ) : (
@@ -134,14 +180,12 @@ export function Message({ message, onReact, onEdit, onRegenerate }: MessageProps
 
       {/* Content */}
       <div className="flex-1 min-w-0 max-w-[90%] sm:max-w-[85%]">
-        <div
-          className={`
-            px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border
-            ${isUser 
-              ? 'bg-surface2 border-border-mid rounded-tr-sm' 
-              : 'bg-surface border-border rounded-tl-sm'}
-          `}
-        >
+        <div className={`
+          px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border
+          ${isUser
+            ? 'bg-surface2 border-border-mid rounded-tr-sm'
+            : 'bg-surface border-border rounded-tl-sm'}
+        `}>
           {isEditing ? (
             <div className="space-y-3">
               <textarea
@@ -189,19 +233,19 @@ export function Message({ message, onReact, onEdit, onRegenerate }: MessageProps
         </div>
 
         {/* Actions bar */}
-        <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 px-1 flex-wrap">
-          <span className="text-[9px] sm:text-[10px] font-medium text-muted">{message.time}</span>
-          
+        <div className="flex items-center gap-2 sm:gap-3 mt-1.5 px-1 flex-wrap">
+          <span className="text-[10px] font-medium text-muted">{message.time}</span>
+
           {message.tokens && (
-            <span className="text-[9px] sm:text-[10px] text-dim font-mono font-medium hidden sm:inline">
+            <span className="text-[10px] text-dim font-mono hidden sm:inline">
               {message.tokens} tokens
             </span>
           )}
-          
+
           <button
             type="button"
             onClick={handleCopy}
-            className="text-[9px] sm:text-[10px] font-medium text-muted hover:text-foreground"
+            className="text-[10px] font-medium text-muted hover:text-foreground transition-colors"
           >
             {copied ? 'Copied' : 'Copy'}
           </button>
@@ -210,9 +254,9 @@ export function Message({ message, onReact, onEdit, onRegenerate }: MessageProps
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="flex items-center gap-1 text-[9px] sm:text-[10px] font-medium text-muted hover:text-foreground"
+              className="flex items-center gap-1 text-[10px] font-medium text-muted hover:text-foreground transition-colors"
             >
-              <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <Pencil className="w-2.5 h-2.5" />
               <span className="hidden sm:inline">Edit</span>
             </button>
           )}
@@ -221,14 +265,13 @@ export function Message({ message, onReact, onEdit, onRegenerate }: MessageProps
             <button
               type="button"
               onClick={() => onRegenerate(message.id)}
-              className="flex items-center gap-1 text-[9px] sm:text-[10px] font-medium text-muted hover:text-foreground"
+              className="flex items-center gap-1 text-[10px] font-medium text-muted hover:text-foreground transition-colors"
             >
-              <RefreshCw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <RefreshCw className="w-2.5 h-2.5" />
               <span className="hidden sm:inline">Regenerate</span>
             </button>
           )}
 
-          {/* Reactions for AI messages */}
           {!isUser && onReact && (
             <div className="flex items-center gap-0.5 sm:gap-1 ml-auto">
               {REACTIONS.map((reaction) => {
@@ -239,9 +282,9 @@ export function Message({ message, onReact, onEdit, onRegenerate }: MessageProps
                     type="button"
                     onClick={() => onReact(message.id, reaction.type)}
                     className={`
-                      p-1 sm:p-1.5 rounded-md
-                      ${isActive 
-                        ? 'bg-foreground/20 text-foreground' 
+                      p-1 sm:p-1.5 rounded-md transition-colors
+                      ${isActive
+                        ? 'bg-foreground/20 text-foreground'
                         : 'text-dim hover:text-muted hover:bg-surface2'}
                     `}
                     title={reaction.label}
