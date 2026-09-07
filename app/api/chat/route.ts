@@ -27,23 +27,22 @@ export async function POST(request: NextRequest) {
       conversationHistory = conversationHistory.slice(-MAX_HISTORY);
     }
 
-    const response = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model || 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: [
-          { role: 'system', content: 'You are NeuraChat, a helpful AI assistant. Be concise, informative, and friendly.' },
-          ...conversationHistory,
-        ],
-        max_tokens: 2048,
-        temperature: 0.7,
-      }),
-    });
-
+   const response = await fetch(GROQ_API_URL, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  },
+  body: JSON.stringify({
+    model: model || 'openai/gpt-oss-120b',
+    messages: [
+      { role: 'system', content: 'You are NeuraChat, a helpful AI assistant. Be concise, informative, and friendly.' },
+      ...conversationHistory,
+    ],
+    max_tokens: 2048,
+    temperature: 0.7,
+  }),
+});
     if (!response.ok) {
       const error = await response.text();
       console.error('Groq API error:', error);
