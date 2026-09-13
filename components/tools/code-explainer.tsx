@@ -5,6 +5,8 @@ import { Code, Loader2 } from 'lucide-react';
 import { PillGroup } from '@/components/ui/pill-group';
 import { ResultBox } from '@/components/ui/result-box';
 import type { ModelId } from '@/types';
+import { readAiStream } from '@/lib/read-ai-stream';
+import { useRequestMeter } from '@/components/request-meter';
 
 interface CodeExplainerProps {
   selectedModel: ModelId;
@@ -26,6 +28,7 @@ export function CodeExplainer({ selectedModel, onShowToast }: CodeExplainerProps
   const [mode, setMode] = useState<'line-by-line' | 'overview' | 'debug' | 'complexity'>('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ explanation: string; tokens: number } | null>(null);
+  const { requestStarted, requestFinished } = useRequestMeter();
 
   const handleSubmit = async () => {
     if (!code.trim()) {
@@ -34,6 +37,7 @@ export function CodeExplainer({ selectedModel, onShowToast }: CodeExplainerProps
     }
 
     setIsLoading(true);
+    requestStarted();
     try {
       const response = await fetch('/api/explain-code', {
         method: 'POST',
@@ -48,12 +52,17 @@ export function CodeExplainer({ selectedModel, onShowToast }: CodeExplainerProps
 
       if (!response.ok) throw new Error('Failed to analyze code');
 
-      const data = await response.json();
-      setResult(data);
+      let explanation = '';
+      const tokens = await readAiStream(response, (chunk) => {
+        explanation += chunk;
+        setResult({ explanation, tokens: 0 });
+      });
+      setResult({ explanation, tokens: tokens || 0 });
       onShowToast('Code analyzed!', 'success');
     } catch {
       onShowToast('Failed to analyze code', 'error');
     } finally {
+      requestFinished();
       setIsLoading(false);
     }
   };

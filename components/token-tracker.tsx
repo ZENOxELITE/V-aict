@@ -11,7 +11,7 @@ interface TokenTrackerProps {
   startTime: Date | null;
 }
 
-// Estimated costs per 1K tokens (approximate for Groq/Llama models)
+// Estimated costs per 1K tokens for the active NVIDIA model.
 const COST_PER_1K_INPUT = 0.00005;
 const COST_PER_1K_OUTPUT = 0.00010;
 

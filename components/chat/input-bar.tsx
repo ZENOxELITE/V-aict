@@ -5,6 +5,7 @@ import { Sparkles, ArrowUp, Square } from 'lucide-react';
 
 interface InputBarProps {
   onSend: (message: string) => void;
+  onStop: () => void;
   isLoading: boolean;
   onOpenTemplates: () => void;
   initialValue?: string;
@@ -12,7 +13,7 @@ interface InputBarProps {
 
 const MAX_CHARS = 4000;
 
-export function InputBar({ onSend, isLoading, onOpenTemplates, initialValue }: InputBarProps) {
+export function InputBar({ onSend, onStop, isLoading, onOpenTemplates, initialValue }: InputBarProps) {
   const [input, setInput] = useState(initialValue || '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,6 +44,10 @@ export function InputBar({ onSend, isLoading, onOpenTemplates, initialValue }: I
   }, []);
 
   const handleSend = () => {
+    if (isLoading) {
+      onStop();
+      return;
+    }
     if (!input.trim() || isLoading) return;
     onSend(input.trim());
     setInput('');

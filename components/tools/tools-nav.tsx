@@ -8,7 +8,7 @@ export function ToolsNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky top-0 z-50 h-[54px] bg-[#0a0a0a]/80 backdrop-blur-sm border-b border-white/8">
+    <nav className="sticky top-0 z-50 h-[60px] bg-[#0a0a0a]/70 backdrop-blur-xl border-b border-white/8">
       <div className="h-full flex items-center px-4 md:px-8">
         <Logo />
 
@@ -18,7 +18,7 @@ export function ToolsNav() {
           <Link
             href="/"
             className={`px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
-              pathname === '/' ? 'text-white' : 'text-[#888] hover:text-white'
+              pathname === '/' ? 'bg-white/[.08] text-white' : 'text-[#888] hover:bg-white/[.04] hover:text-white'
             }`}
           >
             Chat
@@ -26,7 +26,7 @@ export function ToolsNav() {
           <Link
             href="/tools"
             className={`px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
-              pathname === '/tools' ? 'text-white' : 'text-[#888] hover:text-white'
+              pathname === '/tools' ? 'bg-white/[.08] text-white' : 'text-[#888] hover:bg-white/[.04] hover:text-white'
             }`}
           >
             Tools

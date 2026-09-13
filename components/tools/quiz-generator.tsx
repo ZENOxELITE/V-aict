@@ -5,6 +5,8 @@ import { HelpCircle, Loader2 } from 'lucide-react';
 import { PillGroup } from '@/components/ui/pill-group';
 import { ResultBox } from '@/components/ui/result-box';
 import type { ModelId } from '@/types';
+import { readAiStream } from '@/lib/read-ai-stream';
+import { useRequestMeter } from '@/components/request-meter';
 
 interface QuizGeneratorProps {
   selectedModel: ModelId;
@@ -30,6 +32,7 @@ export function QuizGenerator({ selectedModel, onShowToast }: QuizGeneratorProps
   const [count, setCount] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ quiz: string; tokens: number } | null>(null);
+  const { requestStarted, requestFinished } = useRequestMeter();
 
   const handleSubmit = async () => {
     if (!topic.trim()) {
@@ -38,6 +41,7 @@ export function QuizGenerator({ selectedModel, onShowToast }: QuizGeneratorProps
     }
 
     setIsLoading(true);
+    requestStarted();
     try {
       const response = await fetch('/api/quiz', {
         method: 'POST',
@@ -51,14 +55,22 @@ export function QuizGenerator({ selectedModel, onShowToast }: QuizGeneratorProps
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to generate quiz');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to generate quiz');
+      }
 
-      const data = await response.json();
-      setResult(data);
+      let quiz = '';
+      const tokens = await readAiStream(response, (chunk) => {
+        quiz += chunk;
+        setResult({ quiz, tokens: 0 });
+      });
+      setResult({ quiz, tokens: tokens || 0 });
       onShowToast('Quiz generated!', 'success');
-    } catch {
-      onShowToast('Failed to generate quiz', 'error');
+    } catch (error) {
+      onShowToast(error instanceof Error ? error.message : 'Failed to generate quiz', 'error');
     } finally {
+      requestFinished();
       setIsLoading(false);
     }
   };

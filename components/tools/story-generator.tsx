@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react';
 import { BookOpen, Loader2, ChevronRight } from 'lucide-react';
 import { ResultBox } from '@/components/ui/result-box';
 import type { ModelId } from '@/types';
+import { readAiStream } from '@/lib/read-ai-stream';
+import { useRequestMeter } from '@/components/request-meter';
 
 interface StoryGeneratorProps {
   selectedModel: ModelId;
   onShowToast: (message: string, type?: 'default' | 'success' | 'error') => void;
 }
 
-const GENRES = ['Adventure', 'Science Fiction', 'Fantasy', 'Horror', 'Romance', 'Mystery', 'Thriller', 'Comedy', 'Drama'];
-const TONES = ['Neutral', 'Dark', 'Comedic', 'Romantic', 'Suspenseful', 'Epic'];
+const GENRES = ['Adventure', 'Science Fiction', 'Fantasy', 'Horror', 'Romance', 'Dark Romance', 'Mystery', 'Psychological Thriller', 'Gothic', 'Thriller', 'Comedy', 'Drama', 'Historical', 'Dystopian'];
+const TONES = ['Neutral', 'Dark', 'Comedic', 'Romantic', 'Suspenseful', 'Psychological', 'Gothic', 'Hopeful', 'Epic', 'Satirical'];
 const LENGTHS = [
   { value: 'short', label: 'Short (~500 words)' },
   { value: 'medium', label: 'Medium (~800 words)' },
@@ -32,9 +34,11 @@ export function StoryGenerator({ selectedModel, onShowToast }: StoryGeneratorPro
   const [length, setLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [protagonist, setProtagonist] = useState('');
   const [setting, setSetting] = useState('');
+  const [additionalInfo, setAdditionalInfo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
   const [result, setResult] = useState<{ story: string; tokens: number } | null>(null);
+  const { requestStarted, requestFinished } = useRequestMeter();
 
   // Rotate loading messages
   useEffect(() => {
@@ -54,6 +58,7 @@ export function StoryGenerator({ selectedModel, onShowToast }: StoryGeneratorPro
     }
 
     setIsLoading(true);
+    requestStarted();
     try {
       const response = await fetch('/api/story', {
         method: 'POST',
@@ -65,6 +70,7 @@ export function StoryGenerator({ selectedModel, onShowToast }: StoryGeneratorPro
           length,
           protagonist: protagonist || undefined,
           setting: setting || undefined,
+          additionalInfo: additionalInfo || undefined,
           model: selectedModel,
           continue_story: continueStory ? result?.story : undefined,
         }),
@@ -72,15 +78,19 @@ export function StoryGenerator({ selectedModel, onShowToast }: StoryGeneratorPro
 
       if (!response.ok) throw new Error('Failed to generate story');
 
-      const data = await response.json();
-      setResult({
-        story: continueStory && result ? result.story + '\n\n' + data.story : data.story,
-        tokens: data.tokens,
+      const previousStory = continueStory && result ? `${result.story}\n\n` : '';
+      let story = previousStory;
+      const tokens = await readAiStream(response, (chunk) => {
+        story += chunk;
+        setResult({ story, tokens: 0 });
       });
+      setResult({ story, tokens: tokens || 0 });
       onShowToast(continueStory ? 'Story continued!' : 'Story generated!', 'success');
-    } catch {
-      onShowToast('Failed to generate story', 'error');
+    } catch (error) {
+      console.error('Story generation error:', error);
+      onShowToast(error instanceof Error ? error.message : 'Failed to generate story', 'error');
     } finally {
+      requestFinished();
       setIsLoading(false);
     }
   };
@@ -188,6 +198,19 @@ export function StoryGenerator({ selectedModel, onShowToast }: StoryGeneratorPro
             className="w-full px-3 py-2.5 bg-[#111] border border-white/12 rounded-lg text-[13px] text-[#ededed] placeholder:text-[#555] focus:outline-none focus:border-white/22"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#555] mb-2">
+          Additional creative direction (optional)
+        </label>
+        <textarea
+          value={additionalInfo}
+          onChange={(e) => setAdditionalInfo(e.target.value)}
+          placeholder="Add character details, relationships, boundaries, plot beats, or style references..."
+          rows={3}
+          className="w-full px-3 py-2.5 bg-[#111] border border-white/12 rounded-lg text-[13px] text-[#ededed] placeholder:text-[#555] resize-none focus:outline-none focus:border-white/22"
+        />
       </div>
 
       {/* Submit */}

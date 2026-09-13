@@ -5,6 +5,8 @@ import { FileText, Loader2 } from 'lucide-react';
 import { PillGroup } from '@/components/ui/pill-group';
 import { ResultBox } from '@/components/ui/result-box';
 import { StatsRow } from '@/components/ui/stats-row';
+import { readAiStream } from '@/lib/read-ai-stream';
+import { useRequestMeter } from '@/components/request-meter';
 import type { ModelId } from '@/types';
 
 interface SummarizerProps {
@@ -32,6 +34,7 @@ export function Summarizer({ selectedModel, onShowToast }: SummarizerProps) {
     inputWords: number;
     reduction: number;
   } | null>(null);
+  const { requestStarted, requestFinished } = useRequestMeter();
 
   const handleSubmit = async () => {
     if (!text.trim()) {
@@ -40,6 +43,7 @@ export function Summarizer({ selectedModel, onShowToast }: SummarizerProps) {
     }
 
     setIsLoading(true);
+    requestStarted();
     try {
       const response = await fetch('/api/summarize', {
         method: 'POST',
@@ -49,21 +53,20 @@ export function Summarizer({ selectedModel, onShowToast }: SummarizerProps) {
 
       if (!response.ok) throw new Error('Failed to summarize');
 
-      const data = await response.json();
       const inputWords = text.split(/\s+/).filter(Boolean).length;
-      const reduction = Math.round((1 - data.word_count / inputWords) * 100);
-
-      setResult({
-        summary: data.summary,
-        tokens: data.tokens,
-        wordCount: data.word_count,
-        inputWords,
-        reduction,
+      let summary = '';
+      const tokens = await readAiStream(response, (chunk) => {
+        summary += chunk;
+        const wordCount = summary.split(/\s+/).filter(Boolean).length;
+        setResult({ summary, tokens: 0, wordCount, inputWords, reduction: Math.round((1 - wordCount / inputWords) * 100) });
       });
+      const wordCount = summary.split(/\s+/).filter(Boolean).length;
+      setResult({ summary, tokens: tokens || 0, wordCount, inputWords, reduction: Math.round((1 - wordCount / inputWords) * 100) });
       onShowToast('Summary generated!', 'success');
     } catch {
       onShowToast('Failed to generate summary', 'error');
     } finally {
+      requestFinished();
       setIsLoading(false);
     }
   };

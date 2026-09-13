@@ -71,7 +71,7 @@ export function Sidebar({
               onNewChat();
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-muted hover:text-foreground hover:border-accent hover:bg-surface2 transition-colors mb-6"
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-white/[.02] text-muted hover:text-foreground hover:border-accent/60 hover:bg-surface2 transition-colors mb-6"
           >
             <Plus className="w-4 h-4" />
             <span className="text-[13px] font-medium">New conversation</span>
@@ -94,7 +94,7 @@ export function Sidebar({
                 className={`
                   w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all
                   ${selectedModel === model.id 
-                    ? 'bg-surface2 border border-accent/50 text-foreground' 
+                    ? 'bg-accent/[.08] border border-accent/40 text-foreground shadow-[inset_3px_0_0_var(--color-accent)]' 
                     : 'border border-transparent text-muted hover:text-foreground hover:bg-surface2'}
                 `}
               >
@@ -154,7 +154,7 @@ export function Sidebar({
               className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green animate-pulse' : 'bg-red'}`}
             />
             <span className="text-[11px] font-medium text-muted">
-              {currentModel.name} · Groq
+              {currentModel.name} · NVIDIA API
             </span>
           </div>
         </div>

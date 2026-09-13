@@ -32,6 +32,7 @@ export default function ChatPage() {
     isOnline,
     sessionStartTime,
     sendMessage,
+    stopGenerating,
     clearChat,
     changeModel,
     exportChat,
@@ -126,7 +127,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-dvh flex overflow-hidden bg-background">
+    <div className="app-atmosphere h-dvh flex overflow-hidden">
       <Sidebar
         selectedModel={selectedModel}
         onModelChange={handleModelChange}
@@ -159,6 +160,7 @@ export default function ChatPage() {
 
         <InputBar 
           onSend={sendMessage} 
+          onStop={stopGenerating}
           isLoading={isLoading} 
           onOpenTemplates={() => setShowTemplates(true)}
           initialValue={selectedTemplate}

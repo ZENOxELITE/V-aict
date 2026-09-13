@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+const DEFAULT_MODEL = 'deepseek-ai/deepseek-v4-flash-0731';
 
 const TYPE_PROMPTS = {
   'mcq': 'Generate multiple choice questions with 4 options (A, B, C, D) each. Mark the correct answer clearly.',
@@ -16,22 +17,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.NVIDIA_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'NVIDIA_API_KEY not configured' }, { status: 500 });
     }
 
     const typePrompt = TYPE_PROMPTS[type as keyof typeof TYPE_PROMPTS] || TYPE_PROMPTS.mcq;
     const questionCount = Math.min(Math.max(count || 5, 3), 15);
+    const selectedModel = model === DEFAULT_MODEL ? model : DEFAULT_MODEL;
 
-    const response = await fetch(GROQ_API_URL, {
+    const response = await fetch(NVIDIA_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || 'llama-3.3-70b-versatile',
+        model: selectedModel,
         messages: [
           { 
             role: 'system', 
@@ -41,19 +43,21 @@ export async function POST(request: NextRequest) {
         ],
         max_tokens: 2048,
         temperature: 0.5,
+        stream: true,
       }),
     });
 
     if (!response.ok) {
-      return NextResponse.json({ error: 'Failed to generate quiz' }, { status: 500 });
+      const providerError = await response.text();
+      console.error(`NVIDIA quiz API error (${response.status}):`, providerError);
+      return NextResponse.json(
+        { error: 'Failed to generate quiz', details: providerError },
+        { status: response.status >= 400 && response.status < 500 ? response.status : 502 },
+      );
     }
 
-    const data = await response.json();
-    const quiz = data.choices[0]?.message?.content || '';
-
-    return NextResponse.json({
-      quiz,
-      tokens: data.usage?.total_tokens || null,
+    return new Response(response.body, {
+      headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform' },
     });
   } catch (error) {
     console.error('Quiz API error:', error);

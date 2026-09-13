@@ -44,7 +44,7 @@ export function ToolsSidebar({ activeTool, onToolChange, selectedModel, onModelC
               className={`
                 w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all
                 ${activeTool === tool.id 
-                  ? 'bg-[#111] text-white border-l-2 border-white' 
+                  ? 'bg-white/[.07] text-white border-l-2 border-[#b7ff5a] shadow-[inset_0_0_24px_rgba(183,255,90,0.04)]' 
                   : 'text-[#888] hover:text-white hover:bg-white/5'}
               `}
             >

@@ -26,7 +26,7 @@ export function ChatHeader({
   const currentModel = MODELS.find((m) => m.id === selectedModel) || MODELS[0];
 
   return (
-    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-30 bg-background/70 backdrop-blur-xl border-b border-border">
       <div className="flex items-center justify-between h-[54px] px-4">
         <div className="flex items-center gap-3">
           <button
@@ -37,9 +37,13 @@ export function ChatHeader({
             <Menu className="w-5 h-5" />
           </button>
 
-          <span className="text-[15px] font-semibold text-foreground tracking-tight">Assistant</span>
+          <div>
+            <span className="text-[15px] font-semibold text-foreground tracking-tight">Assistant</span>
+            <span className="hidden sm:block text-[10px] text-dim uppercase tracking-[0.18em]">Neura workspace</span>
+          </div>
 
-          <span className="hidden sm:inline-block px-2 py-1 rounded-md bg-surface2 border border-border text-[11px] font-medium text-muted truncate max-w-[140px]">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface2/80 border border-border text-[11px] font-medium text-muted truncate max-w-[180px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-green shadow-[0_0_8px_var(--color-green)]" />
             {currentModel.name}
           </span>
         </div>

@@ -5,6 +5,8 @@ import { Scale, Loader2 } from 'lucide-react';
 import { PillGroup } from '@/components/ui/pill-group';
 import { ResultBox } from '@/components/ui/result-box';
 import type { ModelId } from '@/types';
+import { readAiStream } from '@/lib/read-ai-stream';
+import { useRequestMeter } from '@/components/request-meter';
 
 interface DebateGeneratorProps {
   selectedModel: ModelId;
@@ -29,6 +31,7 @@ export function DebateGenerator({ selectedModel, onShowToast }: DebateGeneratorP
   const [depth, setDepth] = useState<'brief' | 'standard' | 'deep'>('standard');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ debate: string; tokens: number } | null>(null);
+  const { requestStarted, requestFinished } = useRequestMeter();
 
   const handleSubmit = async () => {
     if (!topic.trim()) {
@@ -37,6 +40,7 @@ export function DebateGenerator({ selectedModel, onShowToast }: DebateGeneratorP
     }
 
     setIsLoading(true);
+    requestStarted();
     try {
       const response = await fetch('/api/debate', {
         method: 'POST',
@@ -51,12 +55,17 @@ export function DebateGenerator({ selectedModel, onShowToast }: DebateGeneratorP
 
       if (!response.ok) throw new Error('Failed to generate debate');
 
-      const data = await response.json();
-      setResult(data);
+      let debate = '';
+      const tokens = await readAiStream(response, (chunk) => {
+        debate += chunk;
+        setResult({ debate, tokens: 0 });
+      });
+      setResult({ debate, tokens: tokens || 0 });
       onShowToast('Debate generated!', 'success');
     } catch {
       onShowToast('Failed to generate debate', 'error');
     } finally {
+      requestFinished();
       setIsLoading(false);
     }
   };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
 const STYLE_PROMPTS = {
   concise: 'Provide a concise summary in 2-3 sentences, focusing on the key points.',
@@ -17,21 +17,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.NVIDIA_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'NVIDIA_API_KEY not configured' }, { status: 500 });
     }
 
     const stylePrompt = STYLE_PROMPTS[style as keyof typeof STYLE_PROMPTS] || STYLE_PROMPTS.concise;
 
-    const response = await fetch(GROQ_API_URL, {
+    const response = await fetch(NVIDIA_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || 'llama-3.3-70b-versatile',
+        model: model || 'deepseek-ai/deepseek-v4-flash-0731',
         messages: [
           { 
             role: 'system', 
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
         ],
         max_tokens: 1024,
         temperature: 0.3,
+        stream: true,
       }),
     });
 
@@ -48,14 +49,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to summarize' }, { status: 500 });
     }
 
-    const data = await response.json();
-    const summary = data.choices[0]?.message?.content || '';
-    const wordCount = summary.split(/\s+/).filter(Boolean).length;
-
-    return NextResponse.json({
-      summary,
-      tokens: data.usage?.total_tokens || null,
-      word_count: wordCount,
+    return new Response(response.body, {
+      headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform' },
     });
   } catch (error) {
     console.error('Summarize API error:', error);

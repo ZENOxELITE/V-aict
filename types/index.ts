@@ -99,12 +99,7 @@ export interface DebateResponse {
 export type ToolName = 'summarize' | 'story' | 'code' | 'quiz' | 'email' | 'debate';
 
 export type ModelId =
-  | 'meta-llama/llama-4-scout-17b-16e-instruct'
-  | 'llama-3.3-70b-versatile'
-  | 'llama-3.1-8b-instant'
-  | 'qwen-qwq-32b'
-  | 'gemma2-9b-it'
-  | 'mixtral-8x7b-32768';
+  | 'deepseek-ai/deepseek-v4-flash-0731';
 
 export interface ModelOption {
   id: ModelId;

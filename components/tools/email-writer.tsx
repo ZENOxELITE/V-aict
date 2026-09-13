@@ -5,6 +5,8 @@ import { Mail, Loader2 } from 'lucide-react';
 import { PillGroup } from '@/components/ui/pill-group';
 import { ResultBox } from '@/components/ui/result-box';
 import type { ModelId } from '@/types';
+import { readAiStream } from '@/lib/read-ai-stream';
+import { useRequestMeter } from '@/components/request-meter';
 
 interface EmailWriterProps {
   selectedModel: ModelId;
@@ -34,6 +36,7 @@ export function EmailWriter({ selectedModel, onShowToast }: EmailWriterProps) {
   const [context, setContext] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ email: string; tokens: number } | null>(null);
+  const { requestStarted, requestFinished } = useRequestMeter();
 
   const handleSubmit = async () => {
     if (!intent.trim()) {
@@ -42,6 +45,7 @@ export function EmailWriter({ selectedModel, onShowToast }: EmailWriterProps) {
     }
 
     setIsLoading(true);
+    requestStarted();
     try {
       const response = await fetch('/api/email', {
         method: 'POST',
@@ -57,14 +61,23 @@ export function EmailWriter({ selectedModel, onShowToast }: EmailWriterProps) {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to write email');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `Email API failed (${response.status})`);
+      }
 
-      const data = await response.json();
-      setResult(data);
+      let email = '';
+      const tokens = await readAiStream(response, (chunk) => {
+        email += chunk;
+        setResult({ email, tokens: 0 });
+      });
+      setResult({ email, tokens: tokens || 0 });
       onShowToast('Email drafted!', 'success');
-    } catch {
-      onShowToast('Failed to write email', 'error');
+    } catch (error) {
+      console.error('Email generation error:', error);
+      onShowToast(error instanceof Error ? error.message : 'Failed to write email', 'error');
     } finally {
+      requestFinished();
       setIsLoading(false);
     }
   };

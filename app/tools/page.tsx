@@ -13,7 +13,7 @@ import { DebateGenerator } from '@/components/tools/debate-generator';
 import { NeuraToast } from '@/components/ui/neura-toast';
 import { useNeuraToast } from '@/hooks/use-neura-toast';
 import { loadModel, saveModel } from '@/lib/storage';
-import { DEFAULT_MODEL } from '@/lib/models';
+import { DEFAULT_MODEL, MODELS } from '@/lib/models';
 import type { ToolName, ModelId } from '@/types';
 
 export default function ToolsPage() {
@@ -24,7 +24,7 @@ export default function ToolsPage() {
   // Load model from localStorage
   useEffect(() => {
     const storedModel = loadModel();
-    if (storedModel) {
+    if (storedModel && MODELS.some((model) => model.id === storedModel)) {
       setSelectedModel(storedModel as ModelId);
     }
   }, []);
@@ -57,7 +57,7 @@ export default function ToolsPage() {
   };
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="app-atmosphere min-h-dvh flex flex-col">
       <ToolsNav />
 
       <MobileToolbar

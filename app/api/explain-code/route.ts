@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
 const MODE_PROMPTS = {
   'line-by-line': 'Explain this code line by line or block by block. Use clear section headings and explain what each part does in plain English.',
@@ -17,22 +17,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Code is required' }, { status: 400 });
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.NVIDIA_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'NVIDIA_API_KEY not configured' }, { status: 500 });
     }
 
     const modePrompt = MODE_PROMPTS[mode as keyof typeof MODE_PROMPTS] || MODE_PROMPTS.overview;
     const langHint = language ? `This code is written in ${language}.` : '';
 
-    const response = await fetch(GROQ_API_URL, {
+    const response = await fetch(NVIDIA_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || 'llama-3.3-70b-versatile',
+        model: model || 'deepseek-ai/deepseek-v4-flash-0731',
         messages: [
           { 
             role: 'system', 
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         ],
         max_tokens: 2048,
         temperature: 0.3,
+        stream: true,
       }),
     });
 
@@ -49,12 +50,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to analyze code' }, { status: 500 });
     }
 
-    const data = await response.json();
-    const explanation = data.choices[0]?.message?.content || '';
-
-    return NextResponse.json({
-      explanation,
-      tokens: data.usage?.total_tokens || null,
+    return new Response(response.body, {
+      headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform' },
     });
   } catch (error) {
     console.error('Code explain API error:', error);

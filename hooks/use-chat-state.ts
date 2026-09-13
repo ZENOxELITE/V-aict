@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Message, ModelId, ReactionType } from '@/types';
 import { saveMessages, loadMessages, clearMessages, saveModel, loadModel } from '@/lib/storage';
-import { DEFAULT_MODEL } from '@/lib/models';
+import { DEFAULT_MODEL, MODELS } from '@/lib/models';
+import { useRequestMeter } from '@/components/request-meter';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -11,7 +12,49 @@ function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+async function readChatStream(
+  response: Response,
+  onChunk: (content: string) => void,
+): Promise<number | null> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('The AI provider returned no response stream.');
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let tokens: number | null = null;
+
+  const processLines = (lines: string[]) => {
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6).trim();
+      if (payload === '[DONE]') continue;
+
+      try {
+        const data = JSON.parse(payload);
+        const content = data.choices?.[0]?.delta?.content;
+        if (content) onChunk(content);
+        if (data.usage?.total_tokens) tokens = data.usage.total_tokens;
+      } catch {
+        // Ignore malformed partial events; the next read completes the JSON.
+      }
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    processLines(lines);
+  }
+
+  if (buffer) processLines([buffer]);
+  return tokens;
+}
+
 export function useChatState() {
+  const { requestStarted, requestFinished } = useRequestMeter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelId>(DEFAULT_MODEL.id);
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +62,7 @@ export function useChatState() {
   const [sessionTokens, setSessionTokens] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -35,7 +79,7 @@ export function useChatState() {
       const existingTokens = migratedMessages.reduce((acc: number, m: Message) => acc + (m.tokens || 0), 0);
       setTotalTokens(existingTokens);
     }
-    if (storedModel) {
+    if (storedModel && MODELS.some((model) => model.id === storedModel)) {
       setSelectedModel(storedModel as ModelId);
     }
     setSessionStartTime(new Date());
@@ -71,11 +115,15 @@ export function useChatState() {
 
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
+    requestStarted();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: abortController.signal,
         body: JSON.stringify({
           message: content.trim(),
           model: selectedModel,
@@ -83,38 +131,60 @@ export function useChatState() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `API request failed (${response.status})`);
       }
 
-      const data = await response.json();
-      
       const aiMessage: Message = {
         id: generateId(),
         role: 'ai',
-        content: data.reply,
+        content: '',
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        tokens: data.tokens || undefined,
       };
 
       setMessages((prev) => [...prev, aiMessage]);
-      if (data.tokens) {
-        setTotalTokens((prev) => prev + data.tokens);
-        setSessionTokens((prev) => prev + data.tokens);
+      const tokens = await readChatStream(response, (chunk) => {
+        setMessages((prev) => prev.map((message) => (
+          message.id === aiMessage.id
+            ? { ...message, content: message.content + chunk }
+            : message
+        )));
+      });
+      if (tokens) {
+        setMessages((prev) => prev.map((message) => (
+          message.id === aiMessage.id ? { ...message, tokens: tokens || undefined } : message
+        )));
+        setTotalTokens((prev) => prev + tokens);
+        setSessionTokens((prev) => prev + tokens);
       }
       setIsOnline(true);
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setIsOnline(true);
+        return;
+      }
       setIsOnline(false);
       const errorMessage: Message = {
         id: generateId(),
         role: 'ai',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: error instanceof Error && error.message === 'NVIDIA_API_KEY not configured'
+          ? 'The AI API is not configured. Add NVIDIA_API_KEY to .env and restart the dev server.'
+          : error instanceof Error
+            ? error.message
+            : 'Sorry, I encountered an error. Please try again.',
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
+      abortControllerRef.current = null;
+      requestFinished();
       setIsLoading(false);
     }
-  }, [selectedModel, isLoading]);
+  }, [selectedModel, isLoading, requestStarted, requestFinished]);
+
+  const stopGenerating = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
 
   const regenerateMessage = useCallback(async (messageId: string) => {
     // Find the AI message and the user message before it
@@ -152,20 +222,27 @@ export function useChatState() {
         throw new Error('Failed to get response');
       }
 
-      const data = await response.json();
-      
       const aiMessage: Message = {
         id: generateId(),
         role: 'ai',
-        content: data.reply,
+        content: '',
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        tokens: data.tokens || undefined,
       };
 
       setMessages((prev) => [...prev, aiMessage]);
-      if (data.tokens) {
-        setTotalTokens((prev) => prev + data.tokens);
-        setSessionTokens((prev) => prev + data.tokens);
+      const tokens = await readChatStream(response, (chunk) => {
+        setMessages((prev) => prev.map((message) => (
+          message.id === aiMessage.id
+            ? { ...message, content: message.content + chunk }
+            : message
+        )));
+      });
+      if (tokens) {
+        setMessages((prev) => prev.map((message) => (
+          message.id === aiMessage.id ? { ...message, tokens: tokens || undefined } : message
+        )));
+        setTotalTokens((prev) => prev + tokens);
+        setSessionTokens((prev) => prev + tokens);
       }
       setIsOnline(true);
     } catch {
@@ -259,6 +336,7 @@ export function useChatState() {
     isOnline,
     sessionStartTime,
     sendMessage,
+    stopGenerating,
     clearChat,
     changeModel,
     exportChat,
